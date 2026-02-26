@@ -2,9 +2,12 @@ openapi: 3.0.3
 info:
   title: XO Protocol API
   description: |
-    The Dating Intelligence API. XO Protocol provides identity verification, compatibility
-    scoring, and reputation data through simple REST endpoints. No personal data is exposed —
-    only scores, tiers, and verification status.
+    The Dating Intelligence API. Identity verification via onchain Soul Bound Tokens,
+    AI-powered compatibility scoring, and reputation data through simple REST endpoints.
+    No personal data is exposed — only scores, tiers, and verification status.
+
+    XO Protocol serves as a **social passport for AI agents** — portable identity, trust, and
+    compatibility that works across platforms. Credibly neutral, user-authorized.
 
     ## Authentication
 
@@ -149,10 +152,11 @@ paths:
   /protocol/v1/identity/verify:
     get:
       operationId: verify_identity
-      summary: Verify user identity
+      summary: Verify user identity (Proof of Personhood)
       description: |
-        Returns the authenticated user's SBT (Soul Bound Token) verification status,
-        trust score, and attestations (photo verification, social accounts, etc.).
+        Returns the authenticated user's onchain proof of personhood: SBT (Soul Bound Token)
+        verification status, trust score, and attestations (photo verification, social accounts,
+        etc.). Portable across platforms — no personal data exposed.
       tags:
         - Identity
       security:

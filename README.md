@@ -82,6 +82,16 @@ curl -X POST https://protocol.xoxo.space/protocol/v1/auth/token \
 
 ---
 
+## Why AI x Crypto
+
+XO Protocol sits at the intersection of AI agents and onchain identity:
+
+- **Proof of Personhood** — XO's Soul Bound Token (SBT) provides privacy-preserving identity verification. A portable, onchain proof that a user is a real, verified person — without exposing any personal data.
+- **Social Passport for AI** — AI agents need persistent social context across platforms. XO Protocol provides trust scores, compatibility, and reputation as portable intelligence that agents can query via standard REST + OAuth.
+- **Credible Neutrality** — User data flows only where users authorize it. No platform lock-in, no hidden access. OAuth 2.0 consent + scoped tokens ensure users control their data.
+
+---
+
 ## Privacy
 
 XO Protocol is designed as a **privacy-first intelligence API**. No personal data is ever exposed:
