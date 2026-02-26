@@ -1,0 +1,635 @@
+openapi: 3.0.3
+info:
+  title: XO Protocol API
+  description: |
+    The Trust Layer for AI-Powered Human Connection.
+
+    XO Protocol exposes XO's infrastructure (SBT identity, Aura reputation, Rec V5 matching)
+    as AI-accessible REST endpoints. All endpoints are **read-only** — write operations return
+    deep links back to the XO App.
+
+    ## Authentication
+
+    Most endpoints require dual-layer authentication:
+    - `X-API-Key` header: Partner API key
+    - `Authorization: Bearer <jwt>` header: User JWT token
+
+    ## Getting Started
+
+    ### Direct Authentication (for first-party apps)
+    1. Obtain a token via `POST /protocol/v1/auth/token` with `grant_type=firebase` (requires `X-API-Key`)
+    2. Use the returned `access_token` for all other endpoints
+
+    ### OAuth 2.0 Authorization Code Flow (for third-party apps)
+    1. Redirect the user to `https://xoxo.space/en/oauth/authorize?client_id=...&redirect_uri=...&scope=...&state=...&response_type=code`
+    2. User authenticates via Google Sign-In and authorizes your app
+    3. User is redirected back to your `redirect_uri` with `?code=...&state=...`
+    4. Exchange the code for tokens via `POST /protocol/v1/auth/token` with `grant_type=authorization_code`
+    5. For public clients (SPAs), use PKCE (`code_challenge` + `code_verifier`)
+
+    Note: Only existing XO users can authenticate. New accounts must be created via the XO App.
+
+    ## Privacy
+
+    - User IDs are replaced with ephemeral `tmp_id` tokens (24h TTL, per-API-key scoped)
+    - Sensitive fields (phone, location, blockList, etc.) are automatically stripped
+    - Audit logs hash all user identifiers
+
+    ## Errors
+
+    All errors follow [RFC 7807 Problem Details](https://tools.ietf.org/html/rfc7807):
+    ```json
+    {
+      "type": "urn:xo:error:api_key_required",
+      "status": 400,
+      "title": "Api Key Required",
+      "detail": "Missing X-API-Key header"
+    }
+    ```
+  version: 0.1.0
+  contact:
+    name: XO Protocol Team
+    url: https://xoxo.space
+  license:
+    name: Proprietary
+
+servers:
+  - url: https://protocol.xoxo.space
+    description: Production
+  - url: http://localhost:3100
+    description: Local development
+  - url: https://staging-api.rooit.net
+    description: Staging
+
+paths:
+  /protocol/v1/auth/authorize:
+    post:
+      operationId: authorize_code
+      summary: Generate an authorization code
+      description: |
+        OAuth 2.0 authorization endpoint. Accepts a Firebase ID token (from the frontend
+        consent page) and returns a one-time authorization code.
+
+        This endpoint is called by the XO consent page (`xoxo.space/oauth/authorize`)
+        after the user authenticates with Google and approves the requested scopes.
+
+        No API key required — rate limited by IP.
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthorizeRequest'
+      responses:
+        '200':
+          description: Authorization code generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthorizeResponse'
+        '400':
+          description: Invalid client, redirect URI, or scope
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Firebase authentication failed
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /protocol/v1/auth/token:
+    post:
+      operationId: token_exchange
+      summary: Exchange credentials for access token
+      description: |
+        OAuth 2.0 token endpoint. Supports two grant types:
+
+        - `grant_type=firebase` — Direct token exchange with a Firebase ID token (for first-party apps)
+        - `grant_type=authorization_code` — Exchange an authorization code for tokens (for third-party apps)
+
+        For `authorization_code` grant, provide either `client_secret` (confidential clients)
+        or `code_verifier` (public clients using PKCE).
+
+        Requires `X-API-Key` header.
+      tags:
+        - Auth
+      security:
+        - apiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/FirebaseTokenRequest'
+                - $ref: '#/components/schemas/AuthCodeTokenRequest'
+      responses:
+        '200':
+          description: Token exchange successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          description: Invalid grant, code, or PKCE verification failed
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Invalid assertion or client credentials
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /protocol/v1/identity/verify:
+    get:
+      operationId: verify_identity
+      summary: Verify user identity
+      description: |
+        Returns the authenticated user's SBT (Soul Bound Token) verification status,
+        trust score, and attestations (photo verification, social accounts, etc.).
+      tags:
+        - Identity
+      security:
+        - apiKey: []
+          bearerAuth: []
+      responses:
+        '200':
+          description: Identity verification result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdentityResponse'
+        '401':
+          description: Authentication failed
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /protocol/v1/connections/search:
+    get:
+      operationId: find_connections
+      summary: Search for compatible connections
+      description: |
+        Returns a list of recommended connections for the authenticated user,
+        powered by the Rec V5 matching engine. User IDs are replaced with
+        ephemeral `tmp_id` tokens that can be used with the reputation endpoint.
+      tags:
+        - Connections
+      security:
+        - apiKey: []
+          bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+          description: Number of connections to return
+        - name: topicIds
+          in: query
+          schema:
+            type: string
+          description: Comma-separated topic IDs to filter by
+        - name: cursor
+          in: query
+          schema:
+            type: string
+          description: Pagination cursor from previous response
+      responses:
+        '200':
+          description: List of matching connections
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionsResponse'
+        '401':
+          description: Authentication failed
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /protocol/v1/reputation/{token}:
+    get:
+      operationId: get_reputation
+      summary: Get user reputation
+      description: |
+        Returns reputation data for a user. The `token` parameter can be:
+        - `me` — the authenticated user's own reputation
+        - A `tmp_id` from the connections search response
+      tags:
+        - Reputation
+      security:
+        - apiKey: []
+          bearerAuth: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+          description: "User token: 'me' or a tmp_id from connections search"
+      responses:
+        '200':
+          description: User reputation data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReputationResponse'
+        '401':
+          description: Authentication failed
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: User not found or token expired
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /protocol/v1/social-signals/{token}:
+    get:
+      operationId: get_social_signals
+      summary: Get user social signals
+      description: |
+        Returns conversation quality metrics and communication style for a user,
+        derived from chat behavior, peer reviews, and personality analysis.
+
+        The `token` parameter can be:
+        - `me` — the authenticated user's own signals
+        - A `tmp_id` from the connections search response
+
+        Fields may be `null` if insufficient data is available. Check the
+        `confidence` field (0-1) to gauge data reliability.
+      tags:
+        - Social Signals
+      security:
+        - apiKey: []
+          bearerAuth: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+          description: "User token: 'me' or a tmp_id from connections search"
+      responses:
+        '200':
+          description: User social signals
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialSignalsResponse'
+        '401':
+          description: Authentication failed
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: User not found or token expired
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+components:
+  securitySchemes:
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: Partner API key
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: User JWT token
+
+  schemas:
+    AuthorizeRequest:
+      type: object
+      required:
+        - firebase_token
+        - client_id
+        - scope
+        - redirect_uri
+        - state
+      properties:
+        firebase_token:
+          type: string
+          description: Firebase ID token from Google Sign-In
+        client_id:
+          type: string
+          description: OAuth client ID
+        scope:
+          type: string
+          description: Comma-separated scopes (e.g. "identity,connections")
+        redirect_uri:
+          type: string
+          format: uri
+          description: Must match a registered redirect URI for the client
+        state:
+          type: string
+          description: Opaque value to prevent CSRF attacks
+        code_challenge:
+          type: string
+          description: PKCE code challenge (optional, for public clients)
+        code_challenge_method:
+          type: string
+          enum: [S256]
+          description: PKCE challenge method (only S256 supported)
+
+    AuthorizeResponse:
+      type: object
+      properties:
+        code:
+          type: string
+          description: One-time authorization code (10 min TTL)
+        state:
+          type: string
+          description: Same state value from the request
+
+    FirebaseTokenRequest:
+      type: object
+      required:
+        - grant_type
+        - assertion
+      properties:
+        grant_type:
+          type: string
+          enum: [firebase]
+        assertion:
+          type: string
+          description: Firebase ID token
+
+    AuthCodeTokenRequest:
+      type: object
+      required:
+        - grant_type
+        - code
+        - client_id
+        - redirect_uri
+      properties:
+        grant_type:
+          type: string
+          enum: [authorization_code]
+        code:
+          type: string
+          description: Authorization code from /auth/authorize
+        client_id:
+          type: string
+          description: OAuth client ID
+        client_secret:
+          type: string
+          description: Client secret (for confidential clients)
+        redirect_uri:
+          type: string
+          format: uri
+          description: Must match the redirect_uri used in /auth/authorize
+        code_verifier:
+          type: string
+          description: PKCE code verifier (for public clients, replaces client_secret)
+
+    TokenResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          description: JWT access token
+        refresh_token:
+          type: string
+          description: Refresh token (60-day expiry)
+        token_type:
+          type: string
+          enum: [Bearer]
+        expires_in:
+          type: integer
+          description: Token expiry in seconds
+        scope:
+          type: string
+          nullable: true
+          description: Granted scopes (only present for authorization_code grant)
+
+    IdentityResponse:
+      type: object
+      properties:
+        verified:
+          type: boolean
+          description: Whether the user has completed identity verification
+        trust_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: Normalized trust score (0-1)
+        has_minted_sbt:
+          type: boolean
+          description: Whether the user has minted a Soul Bound Token
+        attestations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Attestation'
+        member_since:
+          type: string
+          format: date-time
+          description: Account creation date
+
+    Attestation:
+      type: object
+      properties:
+        type:
+          type: string
+          description: Verification type (e.g. photo_verification, twitter)
+        provider:
+          type: string
+          description: Attestation provider
+        verified:
+          type: boolean
+        verified_at:
+          type: string
+          format: date-time
+
+    ConnectionsResponse:
+      type: object
+      properties:
+        connections:
+          type: array
+          items:
+            $ref: '#/components/schemas/Connection'
+        cursor:
+          type: string
+          nullable: true
+          description: Cursor for next page
+        total:
+          type: integer
+
+    Connection:
+      type: object
+      properties:
+        tmp_id:
+          type: string
+          description: Ephemeral token (24h TTL) — use with /reputation/:token
+        display_name:
+          type: string
+          nullable: true
+        age:
+          type: integer
+          nullable: true
+        interests:
+          type: array
+          items:
+            type: string
+        verified:
+          type: boolean
+        compatibility_score:
+          type: number
+          nullable: true
+          description: Match score (0-1)
+
+    ReputationResponse:
+      type: object
+      properties:
+        tier:
+          type: string
+          enum: [novice, bronze, silver, gold, platinum, diamond, s]
+          description: League tier
+        role:
+          type: string
+          enum: [supporter, creator]
+          nullable: true
+        reputation_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: Normalized reputation score (0-1)
+        weekly_points:
+          type: integer
+          description: Points earned this week
+        total_points:
+          type: integer
+          description: Total lifetime points
+        status:
+          type: string
+          description: Account safety status
+        season:
+          type: integer
+          nullable: true
+          description: Current league season number
+
+    SocialSignalsResponse:
+      type: object
+      properties:
+        conversation_quality:
+          $ref: '#/components/schemas/ConversationQuality'
+        communication_style:
+          $ref: '#/components/schemas/CommunicationStyle'
+        quality_tier:
+          type: string
+          enum: [invalid, normal, quality, whale]
+          nullable: true
+          description: Partner quality classification
+        sample_size:
+          type: integer
+          description: Number of data points used
+        confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: Data reliability score (0-1)
+
+    ConversationQuality:
+      type: object
+      nullable: true
+      properties:
+        score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          nullable: true
+          description: Composite conversation quality score (0-1)
+        responsiveness:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          nullable: true
+          description: Response engagement level (0-1)
+        engagement_depth:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          nullable: true
+          description: Conversation depth and substance (0-1)
+        consistency:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          nullable: true
+          description: Conversation follow-through rate (0-1)
+
+    CommunicationStyle:
+      type: object
+      nullable: true
+      description: Derived from conversation history analysis. Null if insufficient data.
+      properties:
+        verbosity:
+          type: string
+          enum: [concise, moderate, expressive]
+          nullable: true
+        humor:
+          type: string
+          enum: [low, moderate, high]
+          nullable: true
+        empathy:
+          type: string
+          enum: [low, moderate, high]
+          nullable: true
+        formality:
+          type: string
+          enum: [casual, balanced, formal]
+          nullable: true
+        directness:
+          type: string
+          enum: [indirect, balanced, direct]
+          nullable: true
+        emotional_expressiveness:
+          type: string
+          enum: [reserved, moderate, expressive]
+          nullable: true
+
+    ProblemDetail:
+      type: object
+      description: RFC 7807 Problem Details
+      properties:
+        type:
+          type: string
+          format: uri
+          description: Error type URI (e.g. urn:xo:error:api_key_required)
+        status:
+          type: integer
+          description: HTTP status code
+        title:
+          type: string
+          description: Human-readable error title
+        detail:
+          type: string
+          description: Human-readable error detail
