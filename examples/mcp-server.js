@@ -72,7 +72,7 @@ server.setRequestHandler("tools/list", async () => ({
     {
       name: "search_connections",
       description:
-        "Search for compatible connections using AI-powered matching. Returns recommended users with compatibility scores.",
+        "Search for compatible connections. Returns AI-computed compatibility scores — no personal data (names, photos, ages) exposed.",
       inputSchema: {
         type: "object",
         properties: {
@@ -86,7 +86,7 @@ server.setRequestHandler("tools/list", async () => ({
     {
       name: "get_reputation",
       description:
-        "Get reputation data for a user. Use 'me' for the authenticated user, or a tmp_id from connections search.",
+        "Get reputation tier and score for a user. No activity details exposed. Use 'me' for self, or a tmp_id from connections search.",
       inputSchema: {
         type: "object",
         properties: {
@@ -101,7 +101,7 @@ server.setRequestHandler("tools/list", async () => ({
     {
       name: "get_social_signals",
       description:
-        "Get conversation quality metrics and communication style for a user. Use 'me' for the authenticated user.",
+        "Get composite engagement score for a user. No behavioral profiling or personality data exposed. Use 'me' for self.",
       inputSchema: {
         type: "object",
         properties: {

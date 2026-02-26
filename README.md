@@ -1,15 +1,15 @@
 # XO Protocol
 
-**The Trust Layer for AI-Powered Human Connection.**
+**The Dating Intelligence API.**
 
-XO Protocol exposes [XO](https://xoxo.space)'s social infrastructure — identity verification, AI-powered matching, reputation scores, and social signals — as developer-friendly REST endpoints.
+The first dating intelligence API. Identity verification, compatibility scoring, and reputation — answers, not data. No personal information is ever exposed; only scores, tiers, and verification status.
 
 > **Status:** Public Beta — free to use, rate limits apply.
 
 ## Quick Links
 
 - [Landing Page](https://xoxo.space/en/protocol)
-- [API Docs (Swagger)](https://protocol.xoxo.space/protocol/v1/docs)
+- [API Docs (Swagger)](https://protocol.xoxo.space/protocol/docs)
 - [OpenAPI Spec](./openapi.yaml)
 
 ---
@@ -20,10 +20,10 @@ XO Protocol exposes [XO](https://xoxo.space)'s social infrastructure — identit
 |----------|--------|------|-------------|
 | `/protocol/v1/auth/token` | POST | API Key | Exchange Firebase token or auth code for JWT |
 | `/protocol/v1/auth/authorize` | POST | Public | Generate OAuth authorization code |
-| `/protocol/v1/identity/verify` | GET | API Key + JWT | User's SBT verification, trust score, attestations |
-| `/protocol/v1/connections/search` | GET | API Key + JWT | AI-powered connection recommendations |
-| `/protocol/v1/reputation/{token}` | GET | API Key + JWT | Aura league tier and reputation score |
-| `/protocol/v1/social-signals/{token}` | GET | API Key + JWT | Conversation quality and communication style |
+| `/protocol/v1/identity/verify` | GET | API Key + JWT | SBT verification status, trust score, attestations |
+| `/protocol/v1/connections/search` | GET | API Key + JWT | AI-computed compatibility scores — no personal data |
+| `/protocol/v1/reputation/{token}` | GET | API Key + JWT | Reputation tier and score |
+| `/protocol/v1/social-signals/{token}` | GET | API Key + JWT | Composite engagement score |
 
 ---
 
@@ -75,15 +75,19 @@ curl -X POST https://protocol.xoxo.space/protocol/v1/auth/token \
 
 | Scope | Endpoint | Description |
 |-------|----------|-------------|
-| `identity` | `/identity/verify` | View SBT verification, trust score, attestations |
-| `connections` | `/connections/search` | Search AI-recommended connections |
-| `reputation` | `/reputation/{token}` | View Aura reputation score and league tier |
-| `social_signals` | `/social-signals/{token}` | View conversation quality and communication style |
+| `identity` | `/identity/verify` | View SBT verification status, trust score, attestations |
+| `connections` | `/connections/search` | Get AI-computed compatibility scores between users |
+| `reputation` | `/reputation/{token}` | View reputation tier and score |
+| `social_signals` | `/social-signals/{token}` | View composite engagement score |
 
 ---
 
 ## Privacy
 
+XO Protocol is designed as a **privacy-first intelligence API**. No personal data is ever exposed:
+
+- **No PII**: No names, photos, ages, genders, or personal details in any response.
+- **Scores Only**: Endpoints return scores, tiers, and verification status — not raw data.
 - **Ephemeral IDs**: Real user IDs are never exposed. Connections return `tmp_id` tokens (24h TTL, per-API-key scoped).
 - **User-Authorized**: All data access requires explicit OAuth consent.
 - **Scoped Tokens**: Each JWT is limited to the approved scopes.
@@ -135,7 +139,7 @@ XO Protocol is currently in invite-only beta. Contact us at [protocol@xoxo.space
 
 - Website: [xoxo.space](https://xoxo.space)
 - Protocol Landing: [xoxo.space/protocol](https://xoxo.space/en/protocol)
-- API Docs: [protocol.xoxo.space/protocol/v1/docs](https://protocol.xoxo.space/protocol/v1/docs)
+- API Docs: [protocol.xoxo.space/protocol/docs](https://protocol.xoxo.space/protocol/docs)
 
 ---
 

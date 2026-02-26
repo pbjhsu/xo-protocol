@@ -1,10 +1,10 @@
 /**
  * XO Protocol — Quick Start Example
  *
- * This example demonstrates the OAuth 2.0 Authorization Code Flow:
+ * Demonstrates the OAuth 2.0 Authorization Code Flow:
  * 1. Generate an authorization URL
  * 2. Exchange the auth code for tokens
- * 3. Call the API with the access token
+ * 3. Call the Dating Intelligence API (scores, tiers, verification — no PII)
  *
  * Prerequisites:
  *   - An XO Protocol API key
@@ -156,7 +156,7 @@ async function main() {
   console.log("   Found:", connections.total, "connections");
   for (const c of connections.connections) {
     console.log(
-      `   - ${c.display_name || "Anonymous"} (score: ${c.compatibility_score})`
+      `   - ${c.tmp_id} (compatibility: ${c.compatibility_score}, verified: ${c.verified})`
     );
   }
   console.log();
@@ -166,7 +166,6 @@ async function main() {
   const reputation = await getReputation(access_token);
   console.log("   Tier:", reputation.tier);
   console.log("   Score:", reputation.reputation_score);
-  console.log("   Weekly points:", reputation.weekly_points);
 }
 
 main().catch(console.error);

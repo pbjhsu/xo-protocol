@@ -2,11 +2,9 @@ openapi: 3.0.3
 info:
   title: XO Protocol API
   description: |
-    The Trust Layer for AI-Powered Human Connection.
-
-    XO Protocol exposes XO's infrastructure (SBT identity, Aura reputation, Rec V5 matching)
-    as AI-accessible REST endpoints. All endpoints are **read-only** — write operations return
-    deep links back to the XO App.
+    The Dating Intelligence API. XO Protocol provides identity verification, compatibility
+    scoring, and reputation data through simple REST endpoints. No personal data is exposed —
+    only scores, tiers, and verification status.
 
     ## Authentication
 
@@ -179,9 +177,9 @@ paths:
       operationId: find_connections
       summary: Search for compatible connections
       description: |
-        Returns a list of recommended connections for the authenticated user,
-        powered by the Rec V5 matching engine. User IDs are replaced with
-        ephemeral `tmp_id` tokens that can be used with the reputation endpoint.
+        Returns compatibility scores for recommended connections. No personal data
+        (name, age, gender, photos) is returned — only anonymized scores and
+        ephemeral `tmp_id` tokens for cross-referencing with reputation/signals endpoints.
       tags:
         - Connections
       security:
@@ -225,7 +223,8 @@ paths:
       operationId: get_reputation
       summary: Get user reputation
       description: |
-        Returns reputation data for a user. The `token` parameter can be:
+        Returns the reputation tier and score for a user. No activity details
+        or behavioral data is exposed. The `token` parameter can be:
         - `me` — the authenticated user's own reputation
         - A `tmp_id` from the connections search response
       tags:
@@ -263,16 +262,17 @@ paths:
   /protocol/v1/social-signals/{token}:
     get:
       operationId: get_social_signals
-      summary: Get user social signals
+      summary: Get user engagement score
       description: |
-        Returns conversation quality metrics and communication style for a user,
-        derived from chat behavior, peer reviews, and personality analysis.
+        Returns a single composite engagement score for a user, derived from
+        conversation quality metrics. No behavioral profiling or personality
+        data is exposed.
 
         The `token` parameter can be:
-        - `me` — the authenticated user's own signals
+        - `me` — the authenticated user's own score
         - A `tmp_id` from the connections search response
 
-        Fields may be `null` if insufficient data is available. Check the
+        The score may be `null` if insufficient data is available. Check the
         `confidence` field (0-1) to gauge data reliability.
       tags:
         - Social Signals
@@ -482,23 +482,22 @@ components:
       properties:
         tmp_id:
           type: string
-          description: Ephemeral token (24h TTL) — use with /reputation/:token
-        display_name:
-          type: string
+          description: Ephemeral token (24h TTL) — use with /reputation/:token or /social-signals/:token
+        compatibility_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
           nullable: true
-        age:
-          type: integer
-          nullable: true
-        interests:
+          description: AI-computed compatibility score (0-1)
+        topics:
           type: array
           items:
             type: string
+          description: Shared interest topic IDs
         verified:
           type: boolean
-        compatibility_score:
-          type: number
-          nullable: true
-          description: Match score (0-1)
+          description: Whether the user has completed identity verification
 
     ReputationResponse:
       type: object
@@ -506,115 +505,30 @@ components:
         tier:
           type: string
           enum: [novice, bronze, silver, gold, platinum, diamond, s]
-          description: League tier
-        role:
-          type: string
-          enum: [supporter, creator]
-          nullable: true
+          description: Reputation tier
         reputation_score:
           type: number
           format: float
           minimum: 0
           maximum: 1
           description: Normalized reputation score (0-1)
-        weekly_points:
-          type: integer
-          description: Points earned this week
-        total_points:
-          type: integer
-          description: Total lifetime points
-        status:
-          type: string
-          description: Account safety status
-        season:
-          type: integer
-          nullable: true
-          description: Current league season number
 
     SocialSignalsResponse:
       type: object
       properties:
-        conversation_quality:
-          $ref: '#/components/schemas/ConversationQuality'
-        communication_style:
-          $ref: '#/components/schemas/CommunicationStyle'
-        quality_tier:
-          type: string
-          enum: [invalid, normal, quality, whale]
+        engagement_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
           nullable: true
-          description: Partner quality classification
-        sample_size:
-          type: integer
-          description: Number of data points used
+          description: Composite engagement score derived from conversation quality (0-1)
         confidence:
           type: number
           format: float
           minimum: 0
           maximum: 1
-          description: Data reliability score (0-1)
-
-    ConversationQuality:
-      type: object
-      nullable: true
-      properties:
-        score:
-          type: number
-          format: float
-          minimum: 0
-          maximum: 1
-          nullable: true
-          description: Composite conversation quality score (0-1)
-        responsiveness:
-          type: number
-          format: float
-          minimum: 0
-          maximum: 1
-          nullable: true
-          description: Response engagement level (0-1)
-        engagement_depth:
-          type: number
-          format: float
-          minimum: 0
-          maximum: 1
-          nullable: true
-          description: Conversation depth and substance (0-1)
-        consistency:
-          type: number
-          format: float
-          minimum: 0
-          maximum: 1
-          nullable: true
-          description: Conversation follow-through rate (0-1)
-
-    CommunicationStyle:
-      type: object
-      nullable: true
-      description: Derived from conversation history analysis. Null if insufficient data.
-      properties:
-        verbosity:
-          type: string
-          enum: [concise, moderate, expressive]
-          nullable: true
-        humor:
-          type: string
-          enum: [low, moderate, high]
-          nullable: true
-        empathy:
-          type: string
-          enum: [low, moderate, high]
-          nullable: true
-        formality:
-          type: string
-          enum: [casual, balanced, formal]
-          nullable: true
-        directness:
-          type: string
-          enum: [indirect, balanced, direct]
-          nullable: true
-        emotional_expressiveness:
-          type: string
-          enum: [reserved, moderate, expressive]
-          nullable: true
+          description: Data reliability score (0-1). Higher values indicate more data points.
 
     ProblemDetail:
       type: object
