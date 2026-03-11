@@ -2,7 +2,7 @@
 
 **The Dating Intelligence API.**
 
-The first dating intelligence API. Identity verification, compatibility scoring, and reputation — answers, not data. No personal information is ever exposed; only scores, tiers, and verification status.
+Identity verification, compatibility scoring, and reputation — answers, not data. No personal information is ever exposed; only scores, tiers, and verification status.
 
 > **Status:** Public Beta — free to use, rate limits apply.
 
@@ -11,6 +11,184 @@ The first dating intelligence API. Identity verification, compatibility scoring,
 - [Landing Page](https://xoxo.space/en/protocol)
 - [API Docs (Swagger)](https://protocol.xoxo.space/protocol/docs)
 - [OpenAPI Spec](./openapi.yaml)
+
+---
+
+## Quick Start (5 minutes)
+
+### Install the SDK
+
+```bash
+npm install @xo-protocol/sdk
+```
+
+### Get a Trust Profile
+
+```javascript
+import { XOClient } from '@xo-protocol/sdk'
+
+const xo = new XOClient({ apiKey: 'your-api-key' })
+xo.setAccessToken(userToken) // from OAuth flow
+
+// One call to get everything
+const { identity, reputation, socialSignals } = await xo.getTrustProfile()
+
+console.log(identity.verified)              // true
+console.log(identity.trust_score)           // 1.0
+console.log(reputation.tier)                // "gold"
+console.log(socialSignals.engagement_score) // 0.45
+console.log(socialSignals.confidence)       // 0.9
+```
+
+### Add "Login with XO" to Your App
+
+```javascript
+const xo = new XOClient({ apiKey: 'your-api-key' })
+
+// 1. Generate login URL
+const url = xo.getAuthorizationUrl({
+  clientId: 'your_client_id',
+  redirectUri: 'https://yourapp.com/callback',
+  state: crypto.randomUUID(),
+})
+// → redirect user to `url`
+
+// 2. Handle callback
+const tokenData = await xo.exchangeCode({
+  code: req.query.code,
+  clientId: 'your_client_id',
+  clientSecret: 'your_secret',
+  redirectUri: 'https://yourapp.com/callback',
+})
+// → xo.setAccessToken() is called automatically
+```
+
+---
+
+## Use Cases
+
+### 1. Trust Badge for Dating Apps
+
+Show a verified trust badge on user profiles. Filter out unverified users from search results.
+
+```javascript
+const profile = await xo.getTrustProfile()
+
+if (profile.identity.verified && profile.identity.trust_score > 0.8) {
+  showBadge('✅ Highly Trusted')
+} else if (profile.identity.verified) {
+  showBadge('✅ Verified')
+} else {
+  showBadge('⚠️ Unverified')
+}
+```
+
+→ See [trust-badge.html](./examples/trust-badge.html) for a complete embeddable widget.
+
+### 2. Quality-Based User Ranking
+
+Sort your user list by trust quality — verified users first, then by reputation tier and engagement.
+
+```javascript
+const TIER_ORDER = { novice: 0, bronze: 1, silver: 2, gold: 3, platinum: 4, diamond: 5, s: 6 }
+
+users.sort((a, b) => {
+  // Verified first
+  if (a.xo.identity.verified !== b.xo.identity.verified)
+    return a.xo.identity.verified ? -1 : 1
+  // Then by tier
+  return TIER_ORDER[b.xo.reputation.tier] - TIER_ORDER[a.xo.reputation.tier]
+})
+```
+
+→ See [dating-app-integration.js](./examples/dating-app-integration.js) for full filtering + sorting logic.
+
+### 3. AI Agent with Social Context
+
+Give your AI agent access to user trust data via MCP (Model Context Protocol) for Claude Desktop or other AI clients.
+
+```javascript
+// AI agent can call: verify_identity, get_reputation, get_social_signals
+// See examples/mcp-server.js for a complete MCP server
+```
+
+→ See [mcp-server.js](./examples/mcp-server.js) for a ready-to-use MCP server.
+
+### 4. Scam Detection
+
+Use engagement score + confidence to identify potentially fraudulent accounts:
+
+```javascript
+const signals = await xo.getSocialSignals()
+
+// Low engagement + high confidence = consistently poor interactions
+if (signals.confidence > 0.7 && signals.engagement_score < 0.1) {
+  flagForReview(user)
+}
+
+// No data at all on an "old" account = suspicious
+const identity = await xo.verifyIdentity()
+if (!identity.verified && signals.engagement_score === null) {
+  requireAdditionalVerification(user)
+}
+```
+
+---
+
+## SDK Reference
+
+### `new XOClient({ apiKey, baseUrl? })`
+
+Create a client instance.
+
+### `xo.setAccessToken(token)`
+
+Set the JWT after completing OAuth.
+
+### `xo.getAuthorizationUrl({ clientId, redirectUri, state, scopes? })`
+
+Returns the OAuth authorization URL. Default scopes: all.
+
+### `xo.exchangeCode({ code, clientId, redirectUri, clientSecret?, codeVerifier? })`
+
+Exchange auth code for access token. Automatically calls `setAccessToken()`.
+
+### `xo.verifyIdentity()`
+
+Returns: `{ verified, trust_score, has_minted_sbt, attestations, member_since }`
+
+### `xo.searchConnections({ limit?, topicIds?, cursor? })`
+
+Returns: `{ connections: [{ tmp_id, compatibility_score, topics, verified }], cursor, total }`
+
+### `xo.getReputation(token?)`
+
+Returns: `{ tier, reputation_score }` — pass `'me'` (default) or a `tmp_id`.
+
+### `xo.getSocialSignals(token?)`
+
+Returns: `{ engagement_score, confidence }` — pass `'me'` (default) or a `tmp_id`.
+
+### `xo.getTrustProfile()`
+
+Convenience method — calls `verifyIdentity()`, `getReputation()`, and `getSocialSignals()` in parallel. Returns `{ identity, reputation, socialSignals }`.
+
+---
+
+## Understanding the Scores
+
+| Field | Range | What It Means |
+|-------|-------|---------------|
+| `trust_score` | 0–1.0 | Composite identity verification score (SBT attestations) |
+| `reputation_score` | 0–1.0 | Cumulative platform reputation (aura / 10,000) |
+| `tier` | novice → s | Reputation level: novice, bronze, silver, gold, platinum, diamond, s |
+| `engagement_score` | 0–1.0 | Conversation quality (AI-scored chat depth + peer reviews) |
+| `confidence` | 0–1.0 | How reliable the engagement score is (more data = higher confidence) |
+
+**Rules of thumb:**
+- `trust_score > 0.8` + `verified: true` → highly trustworthy user
+- `confidence < 0.5` → engagement score is based on too few data points, don't rely on it heavily
+- `engagement_score < 0.1` + `confidence > 0.7` → consistently poor interactions, potential red flag
 
 ---
 
@@ -82,13 +260,14 @@ curl -X POST https://protocol.xoxo.space/protocol/v1/auth/token \
 
 ---
 
-## Why AI x Crypto
+## Examples
 
-XO Protocol sits at the intersection of AI agents and onchain identity:
-
-- **Proof of Personhood** — XO's Soul Bound Token (SBT) provides privacy-preserving identity verification. A portable, onchain proof that a user is a real, verified person — without exposing any personal data.
-- **Social Passport for AI** — AI agents need persistent social context across platforms. XO Protocol provides trust scores, compatibility, and reputation as portable intelligence that agents can query via standard REST + OAuth.
-- **Credible Neutrality** — User data flows only where users authorize it. No platform lock-in, no hidden access. OAuth 2.0 consent + scoped tokens ensure users control their data.
+| Example | Description |
+|---------|-------------|
+| [quickstart.js](./examples/quickstart.js) | Basic OAuth flow + API calls |
+| [trust-badge.html](./examples/trust-badge.html) | Embeddable Trust Badge widget (HTML + CSS + JS) |
+| [dating-app-integration.js](./examples/dating-app-integration.js) | Full dating app integration patterns |
+| [mcp-server.js](./examples/mcp-server.js) | MCP server for Claude Desktop / AI agents |
 
 ---
 
@@ -101,16 +280,6 @@ XO Protocol is designed as a **privacy-first intelligence API**. No personal dat
 - **Ephemeral IDs**: Real user IDs are never exposed. Connections return `tmp_id` tokens (24h TTL, per-API-key scoped).
 - **User-Authorized**: All data access requires explicit OAuth consent.
 - **Scoped Tokens**: Each JWT is limited to the approved scopes.
-- **Audit Logging**: All API calls are logged with hashed identifiers.
-
----
-
-## Examples
-
-| Example | Description |
-|---------|-------------|
-| [quickstart.js](./examples/quickstart.js) | Basic OAuth flow + API call |
-| [mcp-server.js](./examples/mcp-server.js) | MCP server for Claude Desktop |
 
 ---
 

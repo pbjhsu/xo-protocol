@@ -38,6 +38,38 @@ info:
 
     ## Errors
 
+    ## SDK
+
+    Install the official SDK for quick integration:
+    ```bash
+    npm install @xo-protocol/sdk
+    ```
+    ```javascript
+    import { XOClient } from '@xo-protocol/sdk'
+    const xo = new XOClient({ apiKey: 'your-api-key' })
+    xo.setAccessToken(token)
+    const profile = await xo.getTrustProfile()
+    ```
+
+    See [GitHub](https://github.com/pbjhsu/xo-protocol) for examples: Trust Badge widget, dating app integration, MCP server for AI agents.
+
+    ## Understanding the Scores
+
+    | Field | Range | Meaning |
+    |-------|-------|---------|
+    | `trust_score` | 0–1 | Composite identity verification (SBT attestations) |
+    | `reputation_score` | 0–1 | Cumulative platform reputation |
+    | `tier` | novice → s | novice, bronze, silver, gold, platinum, diamond, s |
+    | `engagement_score` | 0–1 | AI-scored conversation quality + peer reviews |
+    | `confidence` | 0–1 | How reliable the engagement score is |
+
+    **Rules of thumb:**
+    - `trust_score > 0.8` + `verified: true` → highly trustworthy
+    - `confidence < 0.5` → engagement score is unreliable (too few data points)
+    - `engagement_score < 0.1` + `confidence > 0.7` → potential red flag
+
+    ## Errors
+
     All errors follow [RFC 7807 Problem Details](https://tools.ietf.org/html/rfc7807):
     ```json
     {
