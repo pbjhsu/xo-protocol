@@ -36,8 +36,6 @@ info:
     - Sensitive fields (phone, location, blockList, etc.) are automatically stripped
     - Audit logs hash all user identifiers
 
-    ## Errors
-
     ## SDK
 
     Install the official SDK for quick integration:
