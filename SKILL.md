@@ -28,7 +28,7 @@ The dating trust layer for AI agents. Verify identity, find compatible connectio
 2. Install the MCP server:
 
 ```bash
-git clone https://github.com/pbjhsu/xo-protocol.git
+git clone https://github.com/xo-protocol/xo-protocol.git
 cd xo-protocol/examples
 npm install @modelcontextprotocol/sdk
 ```
@@ -79,5 +79,5 @@ Call `verify_identity` → returns trust score, SBT status, and attestations.
 ## Links
 
 - [API Docs](https://protocol.xoxo.space/protocol/docs)
-- [OpenAPI Spec](https://github.com/pbjhsu/xo-protocol/blob/main/openapi.yaml)
-- [SDK](https://github.com/pbjhsu/xo-protocol/tree/main/sdk)
+- [OpenAPI Spec](https://github.com/xo-protocol/xo-protocol/blob/main/openapi.yaml)
+- [SDK](https://github.com/xo-protocol/xo-protocol/tree/main/sdk)

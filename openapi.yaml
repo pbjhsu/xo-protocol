@@ -50,7 +50,7 @@ info:
     const profile = await xo.getTrustProfile()
     ```
 
-    See [GitHub](https://github.com/pbjhsu/xo-protocol) for examples: Trust Badge widget, dating app integration, MCP server for AI agents.
+    See [GitHub](https://github.com/xo-protocol/xo-protocol) for examples: Trust Badge widget, dating app integration, MCP server for AI agents.
 
     ## Understanding the Scores
 
