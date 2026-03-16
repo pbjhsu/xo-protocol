@@ -1,8 +1,11 @@
 /**
- * XO Protocol — MCP Server Example
+ * XO Protocol — MCP Server
  *
- * A minimal Model Context Protocol (MCP) server that exposes
- * XO Protocol endpoints as tools for Claude Desktop or other AI clients.
+ * Model Context Protocol server that exposes XO Protocol as tools
+ * for Claude Desktop, ChatGPT, or any MCP-compatible AI client.
+ *
+ * Tools: verify_identity, search_connections, get_reputation,
+ *        get_social_signals, get_profile, get_newsfeed
  *
  * Prerequisites:
  *   npm install @modelcontextprotocol/sdk
@@ -57,7 +60,7 @@ async function callApi(path, params = {}) {
 }
 
 const server = new Server(
-  { name: "xo-protocol", version: "1.0.0" },
+  { name: "xo-protocol", version: "2.0.0" },
   { capabilities: { tools: {} } }
 );
 
@@ -66,13 +69,13 @@ server.setRequestHandler("tools/list", async () => ({
     {
       name: "verify_identity",
       description:
-        "Get the authenticated user's identity verification status, trust score, and attestations (photo verification, social accounts, etc.)",
+        "Check if a user is a verified real person. Returns trust score, SBT status, and verification attestations.",
       inputSchema: { type: "object", properties: {} },
     },
     {
       name: "search_connections",
       description:
-        "Search for compatible connections. Returns AI-computed compatibility scores — no personal data (names, photos, ages) exposed.",
+        "Find compatible people. Returns AI-computed compatibility scores and ephemeral IDs for further lookups.",
       inputSchema: {
         type: "object",
         properties: {
@@ -86,7 +89,7 @@ server.setRequestHandler("tools/list", async () => ({
     {
       name: "get_reputation",
       description:
-        "Get reputation tier and score for a user. No activity details exposed. Use 'me' for self, or a tmp_id from connections search.",
+        "Get a user's reputation tier (novice to S) and score. Use 'me' for yourself, or a tmp_id from search_connections.",
       inputSchema: {
         type: "object",
         properties: {
@@ -101,7 +104,7 @@ server.setRequestHandler("tools/list", async () => ({
     {
       name: "get_social_signals",
       description:
-        "Get composite engagement score for a user. No behavioral profiling or personality data exposed. Use 'me' for self.",
+        "Get a user's conversation quality score and data confidence level. Useful for gauging engagement quality.",
       inputSchema: {
         type: "object",
         properties: {
@@ -109,6 +112,40 @@ server.setRequestHandler("tools/list", async () => ({
             type: "string",
             description: "User token: 'me' or a tmp_id",
             default: "me",
+          },
+        },
+      },
+    },
+    {
+      name: "get_profile",
+      description:
+        "Get a user's self-disclosed interests and preferences. Only returns what the user chose to share. Requires profile scope.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          token: {
+            type: "string",
+            description: "User token: 'me' or a tmp_id",
+            default: "me",
+          },
+        },
+      },
+    },
+    {
+      name: "get_newsfeed",
+      description:
+        "Browse a connection's publicly shared posts and topics. Great for discovering shared interests before starting a conversation.",
+      inputSchema: {
+        type: "object",
+        required: ["tmp_id"],
+        properties: {
+          tmp_id: {
+            type: "string",
+            description: "Ephemeral ID from search_connections",
+          },
+          limit: {
+            type: "number",
+            description: "Number of posts to return (1-50, default 20)",
           },
         },
       },
@@ -142,6 +179,19 @@ server.setRequestHandler("tools/call", async (request) => {
       case "get_social_signals":
         result = await callApi(
           `/protocol/v1/social-signals/${args?.token || "me"}`
+        );
+        break;
+
+      case "get_profile":
+        result = await callApi(
+          `/protocol/v1/profile/${args?.token || "me"}`
+        );
+        break;
+
+      case "get_newsfeed":
+        result = await callApi(
+          `/protocol/v1/newsfeed/${args?.tmp_id}`,
+          { limit: args?.limit }
         );
         break;
 
