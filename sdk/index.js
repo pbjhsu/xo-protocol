@@ -62,7 +62,7 @@ class XOClient {
     clientId,
     redirectUri,
     state,
-    scopes = ["identity", "connections", "reputation", "social_signals"],
+    scopes = ["identity", "connections", "reputation", "social_signals", "profile", "newsfeed"],
   }) {
     const params = new URLSearchParams({
       client_id: clientId,
@@ -165,6 +165,31 @@ class XOClient {
    */
   async getSocialSignals(token = "me") {
     return this._get(`/protocol/v1/social-signals/${token}`);
+  }
+
+  /**
+   * Get user profile preferences. Requires `profile` scope.
+   *
+   * @param {string} [token='me'] - 'me' or a tmp_id from connections search
+   * @returns {Promise<{interests: string[], topics: string[], preferences: object}>}
+   */
+  async getProfile(token = "me") {
+    return this._get(`/protocol/v1/profile/${token}`);
+  }
+
+  /**
+   * Get a connection's public newsfeed posts. Requires `newsfeed` scope.
+   *
+   * @param {string} tmpId - A tmp_id from connections search
+   * @param {object} [options]
+   * @param {number} [options.limit=20] - Max posts (1–50)
+   * @param {string} [options.cursor] - Pagination cursor
+   * @returns {Promise<{posts: Array<{post_id: string, content: string, topics: string[], created_at: string}>, cursor: string|null, total: number}>}
+   */
+  async getNewsfeed(tmpId, { limit = 20, cursor } = {}) {
+    const params = { limit };
+    if (cursor) params.cursor = cursor;
+    return this._get(`/protocol/v1/newsfeed/${tmpId}`, params);
   }
 
   /**

@@ -2,7 +2,7 @@
 
 **The Dating Intelligence API.**
 
-Identity verification, compatibility scoring, and reputation — answers, not data. No personal information is ever exposed; only scores, tiers, and verification status.
+Identity verification, compatibility scoring, and reputation — answers, not data. All data access requires explicit user authorization via OAuth.
 
 > **Status:** Public Beta — free to use, rate limits apply.
 
@@ -169,6 +169,14 @@ Returns: `{ tier, reputation_score }` — pass `'me'` (default) or a `tmp_id`.
 
 Returns: `{ engagement_score, confidence }` — pass `'me'` (default) or a `tmp_id`.
 
+### `xo.getProfile(token?)`
+
+Returns: `{ interests, topics, preferences }` — user's self-disclosed preferences. Requires `profile` scope.
+
+### `xo.getNewsfeed(tmpId, { limit?, cursor? })`
+
+Returns: `{ posts: [{ post_id, content, topics, created_at }], cursor, total }` — user's public posts. Requires `newsfeed` scope.
+
 ### `xo.getTrustProfile()`
 
 Convenience method — calls `verifyIdentity()`, `getReputation()`, and `getSocialSignals()` in parallel. Returns `{ identity, reputation, socialSignals }`.
@@ -202,6 +210,8 @@ Convenience method — calls `verifyIdentity()`, `getReputation()`, and `getSoci
 | `/protocol/v1/connections/search` | GET | API Key + JWT | AI-computed compatibility scores — no personal data |
 | `/protocol/v1/reputation/{token}` | GET | API Key + JWT | Reputation tier and score |
 | `/protocol/v1/social-signals/{token}` | GET | API Key + JWT | Composite engagement score |
+| `/protocol/v1/profile/{token}` | GET | API Key + JWT | User's self-disclosed preferences (requires `profile` scope) |
+| `/protocol/v1/newsfeed/{tmp_id}` | GET | API Key + JWT | User's public posts (requires `newsfeed` scope) |
 
 ---
 
@@ -257,6 +267,8 @@ curl -X POST https://protocol.xoxo.space/protocol/v1/auth/token \
 | `connections` | `/connections/search` | Get AI-computed compatibility scores between users |
 | `reputation` | `/reputation/{token}` | View reputation tier and score |
 | `social_signals` | `/social-signals/{token}` | View composite engagement score |
+| `profile` | `/profile/{token}` | Access user's self-disclosed preferences and interests |
+| `newsfeed` | `/newsfeed/{tmp_id}` | Browse user's publicly shared posts |
 
 ---
 
@@ -273,13 +285,12 @@ curl -X POST https://protocol.xoxo.space/protocol/v1/auth/token \
 
 ## Privacy
 
-XO Protocol is designed as a **privacy-first intelligence API**. No personal data is ever exposed:
+XO Protocol is designed as a **privacy-first intelligence API**:
 
-- **No PII**: No names, photos, ages, genders, or personal details in any response.
-- **Scores Only**: Endpoints return scores, tiers, and verification status — not raw data.
+- **No PII**: No real names, photos, or location in any response.
+- **User-Authorized**: All data access requires explicit OAuth consent. Profile and newsfeed data are only accessible when the user approves those scopes.
 - **Ephemeral IDs**: Real user IDs are never exposed. Connections return `tmp_id` tokens (24h TTL, per-API-key scoped).
-- **User-Authorized**: All data access requires explicit OAuth consent.
-- **Scoped Tokens**: Each JWT is limited to the approved scopes.
+- **Scoped Tokens**: Each JWT is limited to the approved scopes. No scope creep.
 
 ---
 
@@ -310,7 +321,7 @@ All errors follow [RFC 7807 Problem Details](https://tools.ietf.org/html/rfc7807
 
 ## Getting an API Key
 
-XO Protocol is currently in invite-only beta. Contact us at [protocol@xoxo.space](mailto:protocol@xoxo.space) to request access.
+Fill out the [API Key Request form](https://xoxo.space/en/protocol#cta) on the protocol page and we'll get back to you.
 
 ---
 

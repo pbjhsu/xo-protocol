@@ -4,7 +4,8 @@ info:
   description: |
     The Dating Intelligence API. Identity verification via onchain Soul Bound Tokens,
     AI-powered compatibility scoring, and reputation data through simple REST endpoints.
-    No personal data is exposed — only scores, tiers, and verification status.
+    All data access requires explicit user authorization — the protocol never exposes
+    private information without consent.
 
     XO Protocol serves as a **social passport for AI agents** — portable identity, trust, and
     compatibility that works across platforms. Credibly neutral, user-authorized.
@@ -340,6 +341,119 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
 
+  /protocol/v1/profile/{token}:
+    get:
+      operationId: get_profile
+      summary: Get user profile preferences
+      description: |
+        Returns a user's self-disclosed preferences and interests. Requires the
+        `profile` scope — only accessible when the user has explicitly authorized it.
+
+        No private data (real name, photo, location) is included. Only information
+        the user chose to share publicly.
+
+        The `token` parameter can be:
+        - `me` — the authenticated user's own profile
+        - A `tmp_id` from the connections search response
+      tags:
+        - Profile
+      security:
+        - apiKey: []
+          bearerAuth: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+          description: "User token: 'me' or a tmp_id from connections search"
+      responses:
+        '200':
+          description: User profile preferences
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileResponse'
+        '401':
+          description: Authentication failed
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Missing profile scope
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: User not found or token expired
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /protocol/v1/newsfeed/{tmp_id}:
+    get:
+      operationId: get_newsfeed
+      summary: Browse a connection's public posts
+      description: |
+        Returns publicly shared posts from a connection. Requires the `newsfeed`
+        scope — only accessible when the user has explicitly authorized it.
+
+        Only content the user chose to publish is returned. No private messages
+        or non-public content is ever included.
+      tags:
+        - Newsfeed
+      security:
+        - apiKey: []
+          bearerAuth: []
+      parameters:
+        - name: tmp_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Ephemeral ID from connections search
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+          description: Number of posts to return
+        - name: cursor
+          in: query
+          schema:
+            type: string
+          description: Pagination cursor from previous response
+      responses:
+        '200':
+          description: User's public posts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NewsfeedResponse'
+        '401':
+          description: Authentication failed
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Missing newsfeed scope
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: User not found or token expired
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
 components:
   securitySchemes:
     apiKey:
@@ -563,6 +677,57 @@ components:
           minimum: 0
           maximum: 1
           description: Data reliability score (0-1). Higher values indicate more data points.
+
+    ProfileResponse:
+      type: object
+      properties:
+        interests:
+          type: array
+          items:
+            type: string
+          description: User's self-disclosed interest tags
+        topics:
+          type: array
+          items:
+            type: string
+          description: Topic IDs the user follows
+        preferences:
+          type: object
+          description: User-shared preference signals (varies by user)
+          additionalProperties: true
+
+    NewsfeedResponse:
+      type: object
+      properties:
+        posts:
+          type: array
+          items:
+            $ref: '#/components/schemas/NewsfeedPost'
+        cursor:
+          type: string
+          nullable: true
+          description: Cursor for next page
+        total:
+          type: integer
+
+    NewsfeedPost:
+      type: object
+      properties:
+        post_id:
+          type: string
+          description: Post identifier
+        content:
+          type: string
+          description: Post text content
+        topics:
+          type: array
+          items:
+            type: string
+          description: Associated topic tags
+        created_at:
+          type: string
+          format: date-time
+          description: Post creation timestamp
 
     ProblemDetail:
       type: object

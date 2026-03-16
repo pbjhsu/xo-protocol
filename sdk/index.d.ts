@@ -56,6 +56,25 @@ export interface SocialSignalsResult {
   confidence: number;
 }
 
+export interface ProfileResult {
+  interests: string[];
+  topics: string[];
+  preferences: Record<string, unknown>;
+}
+
+export interface NewsfeedPost {
+  post_id: string;
+  content: string;
+  topics: string[];
+  created_at: string;
+}
+
+export interface NewsfeedResult {
+  posts: NewsfeedPost[];
+  cursor: string | null;
+  total: number;
+}
+
 export interface TrustProfile {
   identity: IdentityResult;
   reputation: ReputationResult;
@@ -75,6 +94,8 @@ export declare class XOClient {
   }): Promise<ConnectionsSearchResult>;
   getReputation(token?: string): Promise<ReputationResult>;
   getSocialSignals(token?: string): Promise<SocialSignalsResult>;
+  getProfile(token?: string): Promise<ProfileResult>;
+  getNewsfeed(tmpId: string, options?: { limit?: number; cursor?: string }): Promise<NewsfeedResult>;
   getTrustProfile(): Promise<TrustProfile>;
 }
 
